@@ -32,7 +32,12 @@ void dump_image_ppm(int width, int height, auto& fb_data) {
 
 void save_image_png(int width, int height, sycl::buffer<color, 2> &fb) {
   constexpr unsigned num_channels = 3;
-  auto fb_data = fb.get_access<sycl::access::mode::read>();
+
+#ifdef TRISYCL_CL_LANGUAGE_VERSION
+   auto fb_data = fb.get_access<sycl::access::mode::read>();
+#else
+  auto fb_data = fb.get_host_access(sycl::read_only);
+#endif
 
   std::vector<uint8_t> pixels;
   pixels.resize(width * height * num_channels);

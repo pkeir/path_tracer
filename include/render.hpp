@@ -123,14 +123,22 @@ inline void executor(sycl::handler& cgh, camera const& cam_ptr,
   } else {
     const auto global = sycl::range<2>(height, width);
 
+#ifdef TRISYCL_CL_LANGUAGE_VERSION
     cgh.parallel_for<PixelRender>(global, [=](sycl::item<2> item) {
+#else
+    cgh.parallel_for(global, [=](sycl::item<2> item) {
+#endif
       auto gid = item.get_id();
       const auto x_coord = gid[1];
       const auto y_coord = gid[0];
       auto init_generator_state =
           std::hash<std::size_t> {}(item.get_linear_id());
       LocalPseudoRNG rng(init_generator_state);
+#ifdef TRISYCL_CL_LANGUAGE_VERSION
       task_context ctx { rng, texture_acc.get_pointer() };
+#else
+      task_context ctx { rng, const_cast<uint8_t*>(texture_acc.get_pointer()) };
+#endif
       render_pixel<width, height, samples, depth>(
           ctx, x_coord, y_coord, cam_ptr, hittable_acc, fb_acc);
     });
@@ -149,10 +157,18 @@ void render(sycl::queue& queue, sycl::buffer<color, 2>& frame_buf,
 
   // Submit command group on device
   queue.submit([&](sycl::handler& cgh) {
-    auto fb_acc = frame_buf.get_access<sycl::access::mode::discard_write>(cgh);
+
+#ifdef TRISYCL_CL_LANGUAGE_VERSION
+     auto fb_acc = frame_buf.get_access<sycl::access::mode::discard_write>(cgh);
+     auto hittables_acc =
+         hittables_buf.get_access<sycl::access::mode::read>(cgh);
+     auto texture_acc = texture_buf.get_access<sycl::access::mode::read>(cgh);
+#else
+    auto fb_acc = frame_buf.get_access<sycl::access_mode::discard_write>(cgh);
     auto hittables_acc =
-        hittables_buf.get_access<sycl::access::mode::read>(cgh);
-    auto texture_acc = texture_buf.get_access<sycl::access::mode::read>(cgh);
+        hittables_buf.get_access<sycl::access_mode::read>(cgh);
+    auto texture_acc = texture_buf.get_access<sycl::access_mode::read>(cgh);
+#endif
 
     executor<width, height, samples, depth>(cgh, cam, hittables_acc, fb_acc,
                                             texture_acc);

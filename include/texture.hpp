@@ -145,9 +145,15 @@ struct image_texture {
     std::size_t pix_idx = local_offset + offset;
     auto scale = 1.f / 255;
     auto& texture_data = ctx.texture_data;
+#ifdef TRISYCL_CL_LANGUAGE_VERSION
     return { texture_data[pix_idx * 3] * scale,
              texture_data[pix_idx * 3 + 1] * scale,
              texture_data[pix_idx * 3 + 2] * scale };
+#else
+    return { *(texture_data.get() + pix_idx * 3) * scale,
+             *(texture_data.get() + (pix_idx * 3 + 1)) * scale,
+             *(texture_data.get() + (pix_idx * 3 + 2)) * scale };
+#endif
   }
 };
 
