@@ -34,7 +34,11 @@ inline auto render_pixel(auto& ctx, int x_coord, int y_coord, camera const& cam,
       auto hit_anything = false;
       auto closest_so_far = infinity;
       // Checking if the ray hits any of the spheres
+#ifdef TRISYCL_CL_LANGUAGE_VERSION
       for (auto i = 0; i < hittable_acc.get_count(); i++) {
+#else
+      for (auto i = 0; i < hittable_acc.size(); i++) {
+#endif
         if (dev_visit(
                 [&](auto&& arg) {
                   return arg.hit(ctx, r, 0.001f, closest_so_far, temp_rec,
